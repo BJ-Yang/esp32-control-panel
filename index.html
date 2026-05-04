@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>理財</title>
+    <style>
+        body {}
+
+        .box input {
+            display: block;
+            margin: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <h3>紅利試算</h3>
+        <input type="number" id="base" value="1000000">
+        <input type="number" id="rate" value="5">
+        <input type="number" id="year" value="3">
+        <select id="calM">
+            <option value="s">單利</option>
+            <option value="c">複利</option>
+        </select>
+        <hr>
+        <button onclick="run()">開始計算</button>
+        <hr>
+        <div id="showDiv">----</div>
+    </div>
+
+
+    <script>
+        function run() {
+            var b = document.getElementById("base").value;
+            var r = document.getElementById("rate").value;
+            var y = document.getElementById("year").value;
+            var calM = String(document.getElementById("calM").value);
+            var showDiv = document.getElementById("showDiv");
+
+            var records = [];
+            var temp_b = b;
+            var total_p = 0;
+            var total_list = "";
+
+            for (var i = 1; i <= y; i++) {
+                var p = Math.round(temp_b * (r / 100));
+                records.push(p);
+                total_p = total_p + p;
+
+                if (calM == "c") {
+                    temp_b = parseInt(temp_b) + parseInt(p);
+                }
+                total_list = total_list + "第" + i + "年 : " + p + "<br>";
+            }
+            showDiv.innerHTML = total_list +
+                "<br>累積收益 :"+ total_p + "<hr>" +
+                "<br>第一年 :"+ records[0] +
+                "<br>第一年 :"+ records[records.length-1] 
+                ;
+
+
+
+
+
+
+
+            // console.log("b: " + b);
+            // console.log("r: " + r);
+            // console.log("y: " + y);
+            // console.log("calM: " + calM);
+            console.log(records);
+            // console.log("-----p: " + p);
+        }
+    </script>
+</body>
+
+</html>
