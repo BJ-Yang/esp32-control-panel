@@ -1,79 +1,33 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <meta charset="UTF-8">
-    <title>理財123</title>
+    <title>ESP32 控制面板</title>
+    <meta charset="utf-8">
     <style>
-        body {}
-
-        .box input {
-            display: block;
-            margin: 10px;
-        }
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        button { font-size: 24px; padding: 15px 40px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; }
+        .on { background-color: #4CAF50; color: white; }
+        .off { background-color: #f44336; color: white; }
     </style>
 </head>
-
 <body>
-    <div class="box">
-        <h3>紅利試算</h3>
-        <input type="number" id="base" value="1000000">
-        <input type="number" id="rate" value="5">
-        <input type="number" id="year" value="3">
-        <select id="calM">
-            <option value="s">單利</option>
-            <option value="c">複利</option>
-        </select>
-        <hr>
-        <button onclick="run()">開始計算</button>
-        <hr>
-        <div id="showDiv">----</div>
-    </div>
-
+    <h1>ESP32-C3 燈光控制</h1>
+    <button class="on" onclick="sendControl(true)">點亮 LED</button>
+    <button class="off" onclick="sendControl(false)">熄滅 LED</button>
 
     <script>
-        function run() {
-            var b = document.getElementById("base").value;
-            var r = document.getElementById("rate").value;
-            var y = document.getElementById("year").value;
-            var calM = String(document.getElementById("calM").value);
-            var showDiv = document.getElementById("showDiv");
+        // 注意：這裡要換成你筆電的 IP
+        const API_URL = "http://192.168.41.135:3000/controls";
 
-            var records = [];
-            var temp_b = b;
-            var total_p = 0;
-            var total_list = "";
-
-            for (var i = 1; i <= y; i++) {
-                var p = Math.round(temp_b * (r / 100));
-                records.push(p);
-                total_p = total_p + p;
-
-                if (calM == "c") {
-                    temp_b = parseInt(temp_b) + parseInt(p);
-                }
-                total_list = total_list + "第" + i + "年 : " + p + "<br>";
-            }
-            showDiv.innerHTML = total_list +
-                "<br>累積收益 :"+ total_p + "<hr>" +
-                "<br>第一年 :"+ records[0] +
-                "<br>第一年 :"+ records[records.length-1] 
-                ;
-
-
-
-
-
-
-
-            // console.log("b: " + b);
-            // console.log("r: " + r);
-            // console.log("y: " + y);
-            // console.log("calM: " + calM);
-            console.log(records);
-            // console.log("-----p: " + p);
+        function sendControl(status) {
+            fetch(API_URL, {
+                method: 'PATCH', // 使用 PATCH 只修改部分資料
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ledStatus: status })
+            })
+            .then(res => console.log("設定成功:", status))
+            .catch(err => alert("連線失敗！請檢查 Server 是否執行中"));
         }
     </script>
 </body>
-
 </html>
