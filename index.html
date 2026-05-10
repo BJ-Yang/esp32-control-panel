@@ -1,41 +1,85 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <title>ESP32 控制面板</title>
+    <title>ESP32 IoT 控制面板</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f9; }
-        h1 { color: #333; }
-        button { font-size: 24px; padding: 15px 40px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; transition: 0.3s; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { font-size: 24px; margin-bottom: 30px; }
+        
+        /* 按鈕樣式 */
+        button { font-size: 18px; padding: 15px 30px; margin: 10px; cursor: pointer; border-radius: 50px; border: none; transition: 0.3s; width: 80%; font-weight: bold; }
         button:active { transform: scale(0.95); }
-        .on { background-color: #4CAF50; color: white; box-shadow: 0 4px #2e7d32; }
-        .off { background-color: #f44336; color: white; box-shadow: 0 4px #c62828; }
-        #statusText { margin-top: 20px; color: #666; }
+        .on-btn { background-color: #4CAF50; color: white; box-shadow: 0 4px #2e7d32; }
+        .off-btn { background-color: #f44336; color: white; box-shadow: 0 4px #c62828; }
+        
+        /* 狀態顯示區 */
+        .status-card { margin-top: 30px; padding: 15px; border-top: 1px solid #eee; }
+        #statusIndicator { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        #updateTime { font-size: 12px; color: #999; }
+        
+        .loading { color: #aaa; font-style: italic; }
     </style>
 </head>
 <body>
-    <h1>ESP32-C3 燈光控制</h1>
-    
-    <button class="on" onclick="sendControl(true)">點亮 LED</button>
-    <button class="off" onclick="sendControl(false)">熄滅 LED</button>
 
-    <p id="statusText">等待操作...</p>
+    <div class="container">
+        <h1>ESP32-C3 雲端控制</h1>
+        
+        <button class="on-btn" onclick="sendControl(true)">點亮 LED (ON)</button>
+        <button class="off-btn" onclick="sendControl(false)">熄滅 LED (OFF)</button>
+
+        <div class="status-card">
+            <div id="statusIndicator">⏳ 讀取中...</div>
+            <div id="updateTime">最後同步：--:--:--</div>
+        </div>
+    </div>
 
     <script>
-        // 1. 確保 IP 正確，且路徑結尾是 /rules/1
-        // const API_URL = "http://192.168.41.135:3000/rules/1";
+        /**
+         * ⚠️ 請確認這串 Ngrok 網址是否更新
+         * 1. 執行 ngrok http 3000
+         * 2. 複製 Forwarding 的 https 網址
+         * 3. 確保結尾有 /rules/1
+         */
         const API_URL = "https://resale-essence-mustiness.ngrok-free.dev/rules/1";
 
+        // --- 功能 A: 定時抓取雲端狀態 (GET) ---
+        function getStatus() {
+            fetch(API_URL)
+            .then(res => {
+                if (!res.ok) throw new Error("網路連線異常");
+                return res.json();
+            })
+            .then(data => {
+                const indicator = document.getElementById('statusIndicator');
+                const timeBox = document.getElementById('updateTime');
+                
+                // 根據 json 裡的 ledStatus 顯示對應文字與 Emoji
+                if (data.ledStatus === true) {
+                    indicator.innerHTML = '<span style="color: #4CAF50;">🟢 目前狀態：點亮中</span>';
+                } else {
+                    indicator.innerHTML = '<span style="color: #f44336;">🔴 目前狀態：熄滅中</span>';
+                }
+                
+                timeBox.innerText = "雲端最後更新時間：" + (data.lastUpdate || "無紀錄");
+            })
+            .catch(err => {
+                document.getElementById('statusIndicator').innerHTML = '<span style="color: grey;">⚠️ 無法連線至伺服器</span>';
+                console.error("抓取失敗:", err);
+            });
+        }
+
+        // --- 功能 B: 發送控制指令 (PATCH) ---
         function sendControl(status) {
-            const statusLabel = status ? "開啟" : "關閉";
-            const now = new Date().toLocaleString(); // 取得當前時間
+            const now = new Date().toLocaleString(); // 取得本地時間
 
             fetch(API_URL, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                // 2. 傳送 ledStatus 並順便更新最後修改時間
-                body: JSON.stringify({ //JSON.stringify 會把 JavaScript 的物件轉成「純文字字串」
+                body: JSON.stringify({ 
                     ledStatus: status,
                     lastUpdate: now
                 })
@@ -45,14 +89,20 @@
                 return res.json();
             })
             .then(data => {
-                console.log("設定成功:", data);
-                document.getElementById('statusText').innerText = "最後指令：" + statusLabel + " (" + now + ")";
+                console.log("成功發送指令:", data);
+                // 指令成功後立刻刷新一次介面
+                getStatus(); 
             })
             .catch(err => {
                 console.error(err);
-                alert("連線失敗！請檢查筆電 JSON Server 是否啟動，且手機/電腦是否在同一個 Wi-Fi");
+                alert("控制失敗！請確認：\n1. Mac 的 JSON Server 是否在執行？\n2. Ngrok 是否啟動？\n3. 網址是否過期？");
             });
         }
+
+        // 網頁載入後每 2 秒自動同步一次
+        setInterval(getStatus, 2000);
+        // 載入時立刻執行一次
+        getStatus();
     </script>
 </body>
 </html>
