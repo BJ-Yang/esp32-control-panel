@@ -19,8 +19,6 @@
         .status-card { margin-top: 30px; padding: 15px; border-top: 1px solid #eee; }
         #statusIndicator { font-size: 20px; font-weight: bold; margin: 10px 0; }
         #updateTime { font-size: 12px; color: #999; }
-        
-        .loading { color: #aaa; font-style: italic; }
     </style>
 </head>
 <body>
@@ -32,23 +30,28 @@
         <button class="off-btn" onclick="sendControl(false)">熄滅 LED (OFF)</button>
 
         <div class="status-card">
-            <div id="statusIndicator">⏳ 讀取中...</div>
+            <div id="statusIndicator">⏳ 正在同步雲端狀態...</div>
             <div id="updateTime">最後同步：--:--:--</div>
         </div>
     </div>
 
     <script>
         /**
-         * ⚠️ 請確認這串 Ngrok 網址是否更新
-         * 1. 執行 ngrok http 3000
-         * 2. 複製 Forwarding 的 https 網址
-         * 3. 確保結尾有 /rules/1
+         * ⚠️ 注意：每次重啟 Ngrok，請務必更換下方的網址
+         * 且確保結尾有 /rules/1
          */
         const API_URL = "https://resale-essence-mustiness.ngrok-free.dev/rules/1";
 
         // --- 功能 A: 定時抓取雲端狀態 (GET) ---
         function getStatus() {
-            fetch(API_URL)
+            fetch(API_URL, {
+                method: "GET",
+                headers: {
+                    // ⭐ 關鍵：這個標頭能繞過 ngrok 的瀏覽器警告頁面，解決 CORS 問題
+                    "ngrok-skip-browser-warning": "true",
+                    "Accept": "application/json"
+                }
+            })
             .then(res => {
                 if (!res.ok) throw new Error("網路連線異常");
                 return res.json();
@@ -57,7 +60,7 @@
                 const indicator = document.getElementById('statusIndicator');
                 const timeBox = document.getElementById('updateTime');
                 
-                // 根據 json 裡的 ledStatus 顯示對應文字與 Emoji
+                // 根據 JSON 資料更新介面
                 if (data.ledStatus === true) {
                     indicator.innerHTML = '<span style="color: #4CAF50;">🟢 目前狀態：點亮中</span>';
                 } else {
@@ -74,11 +77,14 @@
 
         // --- 功能 B: 發送控制指令 (PATCH) ---
         function sendControl(status) {
-            const now = new Date().toLocaleString(); // 取得本地時間
+            const now = new Date().toLocaleString(); 
 
             fetch(API_URL, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true' // PATCH 最好也加上，確保一致性
+                },
                 body: JSON.stringify({ 
                     ledStatus: status,
                     lastUpdate: now
@@ -90,18 +96,18 @@
             })
             .then(data => {
                 console.log("成功發送指令:", data);
-                // 指令成功後立刻刷新一次介面
+                // 成功後立刻同步一次狀態
                 getStatus(); 
             })
             .catch(err => {
                 console.error(err);
-                alert("控制失敗！請確認：\n1. Mac 的 JSON Server 是否在執行？\n2. Ngrok 是否啟動？\n3. 網址是否過期？");
+                alert("控制失敗！\n1. 請確認 Mac 的 json-server 是否有加 --host 0.0.0.0 啟動\n2. 請確認 Ngrok 網址是否正確");
             });
         }
 
-        // 網頁載入後每 2 秒自動同步一次
+        // 設定每 2 秒自動抓取一次最新狀態
         setInterval(getStatus, 2000);
-        // 載入時立刻執行一次
+        // 網頁開啟時立刻抓取一次
         getStatus();
     </script>
 </body>
