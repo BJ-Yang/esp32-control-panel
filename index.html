@@ -1,32 +1,56 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <title>ESP32 控制面板</title>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        button { font-size: 24px; padding: 15px 40px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; }
-        .on { background-color: #4CAF50; color: white; }
-        .off { background-color: #f44336; color: white; }
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f4f4f9; }
+        h1 { color: #333; }
+        button { font-size: 24px; padding: 15px 40px; margin: 10px; cursor: pointer; border-radius: 8px; border: none; transition: 0.3s; }
+        button:active { transform: scale(0.95); }
+        .on { background-color: #4CAF50; color: white; box-shadow: 0 4px #2e7d32; }
+        .off { background-color: #f44336; color: white; box-shadow: 0 4px #c62828; }
+        #statusText { margin-top: 20px; color: #666; }
     </style>
 </head>
 <body>
     <h1>ESP32-C3 燈光控制</h1>
+    
     <button class="on" onclick="sendControl(true)">點亮 LED</button>
     <button class="off" onclick="sendControl(false)">熄滅 LED</button>
 
+    <p id="statusText">等待操作...</p>
+
     <script>
-        // 注意：這裡要換成你筆電的 IP
-        const API_URL = "http://192.168.41.135:3000/controls";
+        // 1. 確保 IP 正確，且路徑結尾是 /rules/1
+        const API_URL = "http://192.168.41.135:3000/rules/1";
 
         function sendControl(status) {
+            const statusLabel = status ? "開啟" : "關閉";
+            const now = new Date().toLocaleString(); // 取得當前時間
+
             fetch(API_URL, {
-                method: 'PATCH', // 使用 PATCH 只修改部分資料
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ledStatus: status })
+                // 2. 傳送 ledStatus 並順便更新最後修改時間
+                body: JSON.stringify({ 
+                    ledStatus: status,
+                    lastUpdate: now
+                })
             })
-            .then(res => console.log("設定成功:", status))
-            .catch(err => alert("連線失敗！請檢查 Server 是否執行中"));
+            .then(res => {
+                if (!res.ok) throw new Error("伺服器回應錯誤");
+                return res.json();
+            })
+            .then(data => {
+                console.log("設定成功:", data);
+                document.getElementById('statusText').innerText = "最後指令：" + statusLabel + " (" + now + ")";
+            })
+            .catch(err => {
+                console.error(err);
+                alert("連線失敗！請檢查筆電 JSON Server 是否啟動，且手機/電腦是否在同一個 Wi-Fi");
+            });
         }
     </script>
 </body>
