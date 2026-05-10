@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <title>ESP32 IoT 控制面板</title>
+    <title>ESP32 IoT 學生實作面板</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
@@ -24,21 +24,23 @@
 <body>
 
     <div class="container">
-        <h1>ESP32-C3 雲端控制</h1>
+        <h1>物聯網控制台</h1>
+        <p>請修改下方 API 網址為你的座號</p>
         
         <button class="on-btn" onclick="sendControl(true)">點亮 LED (ON)</button>
         <button class="off-btn" onclick="sendControl(false)">熄滅 LED (OFF)</button>
 
         <div class="status-card">
-            <div id="statusIndicator">⏳ 正在同步雲端狀態...</div>
+            <div id="statusIndicator">⏳ 正在同步狀態...</div>
             <div id="updateTime">最後同步：--:--:--</div>
         </div>
     </div>
 
     <script>
         /**
-         * ⚠️ 注意：每次重啟 Ngrok，請務必更換下方的網址
-         * 且確保結尾有 /rules/1
+         * 📝 學生練習重點：
+         * 1. 請更換下方的 Ngrok 網址
+         * 2. 網址最後面的數字請改成你的「座號」
          */
         const API_URL = "https://resale-essence-mustiness.ngrok-free.dev/rules/1";
 
@@ -47,8 +49,7 @@
             fetch(API_URL, {
                 method: "GET",
                 headers: {
-                    // ⭐ 關鍵：這個標頭能繞過 ngrok 的瀏覽器警告頁面，解決 CORS 問題
-                    "ngrok-skip-browser-warning": "true",
+                    "ngrok-skip-browser-warning": "true", // 避開 Ngrok 警告頁面
                     "Accept": "application/json"
                 }
             })
@@ -60,18 +61,18 @@
                 const indicator = document.getElementById('statusIndicator');
                 const timeBox = document.getElementById('updateTime');
                 
-                // 根據 JSON 資料更新介面
+                // 因為我們抓的是 /rules/座號，所以 data 直接就是物件，不用加 [0]
                 if (data.ledStatus === true) {
                     indicator.innerHTML = '<span style="color: #4CAF50;">🟢 目前狀態：點亮中</span>';
                 } else {
                     indicator.innerHTML = '<span style="color: #f44336;">🔴 目前狀態：熄滅中</span>';
                 }
                 
-                timeBox.innerText = "雲端最後更新時間：" + (data.lastUpdate || "無紀錄");
+                timeBox.innerText = "雲端最後更新：" + (data.lastUpdate || "尚未有紀錄");
             })
             .catch(err => {
-                document.getElementById('statusIndicator').innerHTML = '<span style="color: grey;">⚠️ 無法連線至伺服器</span>';
-                console.error("抓取失敗:", err);
+                document.getElementById('statusIndicator').innerHTML = '<span style="color: grey;">⚠️ 連線失敗</span>';
+                console.error("錯誤:", err);
             });
         }
 
@@ -83,7 +84,7 @@
                 method: 'PATCH',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true' // PATCH 最好也加上，確保一致性
+                    'ngrok-skip-browser-warning': 'true'
                 },
                 body: JSON.stringify({ 
                     ledStatus: status,
@@ -91,23 +92,26 @@
                 })
             })
             .then(res => {
-                if (!res.ok) throw new Error("伺服器回應錯誤");
+                if (!res.ok) throw new Error("發送失敗");
                 return res.json();
             })
             .then(data => {
-                console.log("成功發送指令:", data);
-                // 成功後立刻同步一次狀態
+                console.log("成功更新資料:", data);
+                // 按下按鈕後「立刻」執行一次抓取，讓介面秒更新
                 getStatus(); 
             })
             .catch(err => {
-                console.error(err);
-                alert("控制失敗！\n1. 請確認 Mac 的 json-server 是否有加 --host 0.0.0.0 啟動\n2. 請確認 Ngrok 網址是否正確");
+                alert("操作失敗，請確認老師提供的 API 網址是否正確。");
             });
         }
 
-        // 設定每 2 秒自動抓取一次最新狀態
-        setInterval(getStatus, 2000);
-        // 網頁開啟時立刻抓取一次
+        /**
+         * 💡 為了避免 25 人同時連線造成伺服器緩慢，
+         * 我們將自動同步時間設為 10 秒 (10000 毫秒)。
+         */
+        setInterval(getStatus, 2000); 
+
+        // 網頁開啟時立刻執行第一次
         getStatus();
     </script>
 </body>
